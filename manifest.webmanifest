@@ -1,0 +1,36 @@
+{
+  "name": "雅雅最棒棒 · 妆娘账本",
+  "short_name": "雅雅最棒棒",
+  "description": "饭粒工作室 · 凡凡子 的妆娘记账本：时间、客户、地点、妆容与收入，全程离线可用。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF7F4",
+  "theme_color": "#FBF7F4",
+  "lang": "zh-CN",
+  "categories": [
+    "productivity",
+    "finance"
+  ],
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
