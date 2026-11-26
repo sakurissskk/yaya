@@ -59,6 +59,11 @@ export function moneyCN(n) {
 // 收款状态（自动派生）
 export function deriveStatus(duty) {
   const price = Number(duty.price) || 0;
+  // 跑单：这单黄了，只认定金，不再算未收
+  if (duty && duty.abandoned) {
+    const dep = Number(duty.deposit) || 0;
+    return { status: 'abandoned', received: dep, remain: 0, price, label: '跑单' };
+  }
   const received = (Number(duty.deposit) || 0) + (Number(duty.tail) || 0);
   if (received <= 0) return { status: 'unpaid', received: 0, remain: price, label: '未收' };
   if (received >= price) return { status: 'paid', received, remain: Math.max(0, price - received), label: '已收' };
@@ -68,7 +73,8 @@ export function deriveStatus(duty) {
 export const STATUS_META = {
   unpaid: { label: '未收', cls: 'unpaid' },
   partial: { label: '部分收', cls: 'partial' },
-  paid: { label: '已收', cls: 'paid' }
+  paid: { label: '已收', cls: 'paid' },
+  abandoned: { label: '跑单', cls: 'abandoned' }
 };
 
 export const SOURCES = ['小红书', '抖音', '朋友圈', '介绍人', '回头客', '闲鱼', '微博', '其他'];

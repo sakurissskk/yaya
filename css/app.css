@@ -128,9 +128,13 @@ ul{margin:0;padding:0;list-style:none}
 }
 .rec:active{transform:scale(.985)}
 .rec .r-dot{
-  width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none;
-  box-shadow:0 0 0 4px var(--brand-soft);
+  width:4px;height:36px;border-radius:3px;background:var(--brand);flex:none;
+  transition:background .2s;
 }
+.rec .r-dot.s-paid{background:#4E9E6A}
+.rec .r-dot.s-partial{background:#D9A441}
+.rec .r-dot.s-unpaid{background:var(--brand)}
+.rec .r-dot.s-abandoned{background:#C0BAB3}
 .rec .r-main{flex:1;min-width:0}
 .rec .r-top{display:flex;align-items:center;gap:6px;font-size:15.5px;font-weight:650}
 .rec .r-sub{font-size:12.5px;color:var(--ink-2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -367,3 +371,105 @@ textarea.control{resize:none;min-height:82px;line-height:1.55}
   font-weight: 600;
 }
 .love-note.in-card { padding: 16px 0 4px; font-size: 12.5px; }
+
+/* ===== 跑单 ===== */
+.badge.abandoned { background: rgba(120, 118, 114, .14); color: #7C7873; }
+.r-price s { font-size: 11px; color: var(--ink-3); margin-left: 4px; font-weight: 500; }
+
+/* ===== 月度汇总更清楚 ===== */
+.hero { position: relative; overflow: hidden; }
+.hero::after {
+  content: '';
+  position: absolute;
+  right: -46px; top: -56px;
+  width: 170px; height: 170px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.30), rgba(255,255,255,0) 68%);
+  pointer-events: none;
+}
+.hero .h-meta > div { position: relative; z-index: 1; }
+.hero .h-meta > div + div::before {
+  content: '';
+  position: absolute;
+  left: -1px; top: 50%;
+  transform: translateY(-50%);
+  width: 1px; height: 22px;
+  background: rgba(255,255,255,.22);
+}
+.hero-note {
+  margin: -6px 0 18px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-size: 12.5px;
+  text-align: center;
+}
+.hero-note b { font-weight: 800; }
+
+/* ===== 页面切换动效 ===== */
+#view > .page-head,
+#view > .hero,
+#view > .card,
+#view > .section-title,
+#view > .list-group,
+#view > .client-row { animation: fadeUp .3s cubic-bezier(.22,.61,.36,1) both; }
+#view > *:nth-child(2){animation-delay:.02s}
+#view > *:nth-child(3){animation-delay:.04s}
+#view > *:nth-child(4){animation-delay:.06s}
+#view > *:nth-child(n+5){animation-delay:.08s}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(7px)}
+  to{opacity:1;transform:none}
+}
+@media (prefers-reduced-motion: reduce){
+  #view > *{animation:none !important}
+}
+
+/* ===== 密度优化：收紧留白，减少视觉块 ===== */
+.hero{padding:17px 18px 15px;border-radius:20px;margin-bottom:12px}
+.hero .h-amount{font-size:33px;margin-top:1px}
+.hero .h-meta{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  margin-top:15px;font-size:11.5px;letter-spacing:.02em;
+}
+.hero .h-meta > div{padding-left:14px;opacity:.92}
+.hero .h-meta > div:first-child{padding-left:0}
+.hero .h-meta > div + div::before{left:0;height:24px;opacity:.7}
+.hero .h-meta b{font-size:15px;margin-top:3px;letter-spacing:-.01em}
+
+.card{padding:14px 15px;margin-bottom:11px}
+.card-head{margin-bottom:10px}
+.section-title{margin:17px 2px 8px}
+.hero-note{margin:-4px 0 14px;padding:8px 12px;font-size:12px}
+
+.bar-row{padding:5px 0;font-size:13px}
+.b-label{width:62px}
+.b-val{width:70px;font-size:12.5px}
+.rank-row{padding:8px 0;font-size:13.5px}
+
+.stat-card{padding:2px 15px 10px}
+.stat-block{padding:12px 0 4px}
+.stat-block + .stat-block{border-top:1px solid var(--line);padding-top:13px}
+.stat-title{font-size:11.5px;font-weight:700;color:var(--ink-3);letter-spacing:.06em;margin-bottom:6px}
+
+/* ===== 宽屏：hero 横向排布，不再上下堆成一大块 ===== */
+@media (min-width: 620px) {
+  .hero {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 28px;
+    align-items: center;
+    padding: 18px 22px;
+  }
+  .hero .h-label { grid-column: 1; grid-row: 1; align-self: end; }
+  .hero .h-amount { grid-column: 1; grid-row: 2; align-self: start; }
+  .hero .h-meta {
+    grid-column: 2; grid-row: 1 / span 2;
+    margin-top: 0;
+    padding-left: 26px;
+  }
+  .hero .h-meta > div:first-child { padding-left: 0; }
+  .hero .h-meta > div + div::before { left: 0; height: 30px; }
+}

@@ -94,11 +94,15 @@ async function viewToday() {
   const thisMonth = all.filter((d) => U.monthKey(d.date) === U.monthKey(today));
   const monthReceived = thisMonth.reduce((s, d) => s + U.deriveStatus(d).received, 0);
   const monthRemain = thisMonth.reduce((s, d) => s + U.deriveStatus(d).remain, 0);
+  const monthQuote = thisMonth.filter((d) => !d.abandoned).reduce((s, d) => s + (Number(d.price) || 0), 0);
+  const monthAbandoned = thisMonth.filter((d) => d.abandoned);
 
   const tDone = all.filter((d) => d.date === today);
   const tNext = all.filter((d) => d.date === tomorrow);
-  const unpaid = all.filter((d) => U.deriveStatus(d).status !== 'paid')
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const unpaid = all.filter((d) => {
+    const st = U.deriveStatus(d).status;
+    return st !== 'paid' && st !== 'abandoned';
+  }).sort((a, b) => a.date.localeCompare(b.date));
   const unpaidSum = unpaid.reduce((s, d) => s + U.deriveStatus(d).remain, 0);
   const recent = all.slice(0, 4);
 
@@ -116,12 +120,13 @@ async function viewToday() {
   </div>
 
   <div class="hero">
-    <div class="h-label">本月已收 · ${U.fmtMonthCN(U.monthKey(today))}</div>
+    <div class="h-label">本月实收 · ${U.fmtMonthCN(U.monthKey(today))}</div>
     <div class="h-amount">¥${U.money(monthReceived)}</div>
     <div class="h-meta">
-      <div>本月单数<b>${thisMonth.length} 单</b></div>
-      <div>应收未收<b>¥${U.money(monthRemain)}</b></div>
-      <div>客单价<b>¥${thisMonth.length ? U.money(monthReceived / thisMonth.length) : '0'}</b></div>
+      <div>报价合计<b>¥${U.money(monthQuote)}</b></div>
+      <div>未收<b>¥${U.money(monthRemain)}</b></div>
+      <div>单数<b>${thisMonth.length} 单</b></div>
+      <div>跑单<b>${monthAbandoned.length} 单</b></div>
     </div>
   </div>
 
@@ -174,7 +179,7 @@ function todoRow(d) {
       </div>
       <div class="t-sub">${U.escapeHTML((d.makeupTypes || []).join('·') || '未选妆容')}${d.location ? ' · ' + U.escapeHTML(d.location) : ''}</div>
     </div>
-    <div class="r-price">¥${U.money(d.price || 0)}</div>
+    <div class="r-price ${d.abandoned ? 'muted' : ''}">${d.abandoned ? `¥${U.money(st.received)}<s>¥${U.money(d.price || 0)}</s>` : '¥' + U.money(d.price || 0)}</div>
   </div>`;
 }
 
@@ -182,7 +187,7 @@ function recCard(d) {
   const st = U.deriveStatus(d);
   const meta = U.STATUS_META[st.status];
   return `<div class="rec" data-action="edit" data-id="${d.id}">
-    <span class="r-dot"></span>
+    <span class="r-dot s-${st.status}"></span>
     <div class="r-main">
       <div class="r-top">${U.escapeHTML(d.clientName || '未填客户')}
         <span class="badge ${meta.cls}">${meta.label}</span>
@@ -190,7 +195,7 @@ function recCard(d) {
       <div class="r-sub">${U.relDay(d.date)} ${d.start || ''}${(d.makeupTypes || []).length ? ' · ' + U.escapeHTML(d.makeupTypes.join('·')) : ''}${d.location ? ' · ' + U.escapeHTML(d.location) : ''}</div>
     </div>
     <div class="r-right">
-      <div class="r-price ${st.received ? '' : 'muted'}">¥${U.money(d.price || 0)}</div>
+      <div class="r-price ${d.abandoned || !st.received ? 'muted' : ''}">${d.abandoned ? `¥${U.money(st.received)}<s>¥${U.money(d.price || 0)}</s>` : '¥' + U.money(d.price || 0)}</div>
     </div>
   </div>`;
 }
@@ -198,7 +203,10 @@ function recCard(d) {
 /* ============ 记录列表 ============ */
 async function viewList() {
   let all = await duties.all();
-  if (state.listFilter === 'unpaid') all = all.filter((d) => U.deriveStatus(d).status !== 'paid');
+  if (state.listFilter === 'unpaid') all = all.filter((d) => {
+    const st = U.deriveStatus(d).status;
+    return st !== 'paid' && st !== 'abandoned';
+  });
   if (state.listFilter === 'month') all = all.filter((d) => U.monthKey(d.date) === U.monthKey(U.todayKey()));
   if (state.search.trim()) {
     const q = state.search.trim().toLowerCase();
@@ -212,12 +220,13 @@ async function viewList() {
     groups.get(d.date).push(d);
   });
 
-  const totalPrice = all.reduce((s, d) => s + (Number(d.price) || 0), 0);
+  const totalPrice = all.filter((d) => !d.abandoned).reduce((s, d) => s + (Number(d.price) || 0), 0);
+  const totalReceived = all.reduce((s, d) => s + U.deriveStatus(d).received, 0);
 
   return `
   <div class="page-head">
     <div>
-      <div class="eyebrow">共 ${all.length} 单 · 报价 ¥${U.money(totalPrice)}</div>
+      <div class="eyebrow">共 ${all.length} 单 · 报价 ¥${U.money(totalPrice)} · 实收 ¥${U.money(totalReceived)}</div>
       <h1>记录</h1>
     </div>
   </div>
@@ -290,7 +299,10 @@ async function viewStats() {
   const all = await duties.byMonth(mk);
   const received = all.reduce((s, d) => s + U.deriveStatus(d).received, 0);
   const remain = all.reduce((s, d) => s + U.deriveStatus(d).remain, 0);
-  const price = all.reduce((s, d) => s + (Number(d.price) || 0), 0);
+  const abandonedList = all.filter((d) => d.abandoned);
+  const abandonedDeposit = abandonedList.reduce((s, d) => s + (Number(d.deposit) || 0), 0);
+  const eff = (d) => (d.abandoned ? U.deriveStatus(d).received : (Number(d.price) || 0));
+  const price = all.filter((d) => !d.abandoned).reduce((s, d) => s + (Number(d.price) || 0), 0);
 
   const byType = {};
   const bySource = {};
@@ -299,16 +311,16 @@ async function viewStats() {
     (d.makeupTypes && d.makeupTypes.length ? d.makeupTypes : ['未分类']).forEach((t) => {
       byType[t] = byType[t] || { n: 0, amt: 0 };
       byType[t].n++;
-      byType[t].amt += Number(d.price) || 0;
+      byType[t].amt += eff(d);
     });
     const s = d.source || '未填';
     bySource[s] = bySource[s] || { n: 0, amt: 0 };
     bySource[s].n++;
-    bySource[s].amt += Number(d.price) || 0;
+    bySource[s].amt += eff(d);
     const c = d.clientName || '未填客户';
     byClient[c] = byClient[c] || { n: 0, amt: 0 };
     byClient[c].n++;
-    byClient[c].amt += Number(d.price) || 0;
+    byClient[c].amt += eff(d);
   });
   const top = (obj, k = 5) => Object.entries(obj).sort((a, b) => b[1].amt - a[1].amt).slice(0, k);
   const maxAmt = Math.max(1, ...Object.values(byType).map((v) => v.amt));
@@ -323,41 +335,45 @@ async function viewStats() {
     </div>
   </div>
   <div class="hero">
-    <div class="h-label">本月已收</div>
+    <div class="h-label">本月实收 · ${U.fmtMonthCN(mk)}</div>
     <div class="h-amount">¥${U.money(received)}</div>
     <div class="h-meta">
       <div>报价合计<b>¥${U.money(price)}</b></div>
       <div>未收<b>¥${U.money(remain)}</b></div>
-      <div>单数<b>${all.length}</b></div>
+      <div>单数<b>${all.length} 单</b></div>
+      <div>跑单<b>${abandonedList.length} 单</b></div>
     </div>
   </div>
-  <div class="card">
-    <div class="card-head"><h3>妆容类型</h3></div>
-    ${Object.keys(byType).length ? top(byType, 8).map(([k, v]) => `
-      <div class="bar-row">
-        <span class="b-label">${U.escapeHTML(k)}</span>
-        <span class="b-track"><i style="width:${Math.round(v.amt / maxAmt * 100)}%"></i></span>
-        <span class="b-val">¥${U.money(v.amt)}</span>
-      </div>`).join('') : emptyRow('本月还没有数据')}
-  </div>
-  <div class="card">
-    <div class="card-head"><h3>客户来源</h3></div>
-    ${Object.keys(bySource).length ? top(bySource, 6).map(([k, v]) => `
-      <div class="bar-row">
-        <span class="b-label">${U.escapeHTML(k)}</span>
-        <span class="b-track"><i class="gold" style="width:${Math.round(v.amt / maxSrc * 100)}%"></i></span>
-        <span class="b-val">${v.n} 单</span>
-      </div>`).join('') : emptyRow('暂无')}
-  </div>
-  <div class="card">
-    <div class="card-head"><h3>客户排行</h3></div>
-    ${Object.keys(byClient).length ? top(byClient, 5).map(([k, v], i) => `
-      <div class="rank-row" data-action="client" data-name="${U.escapeHTML(k)}">
-        <span class="rk ${i < 3 ? 'top' : ''}">${i + 1}</span>
-        <span class="rk-name">${U.escapeHTML(k)}</span>
-        <span class="rk-meta">${v.n} 单</span>
-        <span class="rk-amt">¥${U.money(v.amt)}</span>
-      </div>`).join('') : emptyRow('暂无')}
+  ${abandonedList.length ? `<div class="hero-note">其中跑单 ${abandonedList.length} 单，未化妆、只收定金 <b>¥${U.money(abandonedDeposit)}</b></div>` : ''}
+  <div class="card stat-card">
+    <div class="stat-block">
+      <div class="stat-title">妆容类型</div>
+      ${Object.keys(byType).length ? top(byType, 8).map(([k, v]) => `
+        <div class="bar-row">
+          <span class="b-label">${U.escapeHTML(k)}</span>
+          <span class="b-track"><i style="width:${Math.round(v.amt / maxAmt * 100)}%"></i></span>
+          <span class="b-val">¥${U.money(v.amt)}</span>
+        </div>`).join('') : emptyRow('本月还没有数据')}
+    </div>
+    <div class="stat-block">
+      <div class="stat-title">客户来源</div>
+      ${Object.keys(bySource).length ? top(bySource, 6).map(([k, v]) => `
+        <div class="bar-row">
+          <span class="b-label">${U.escapeHTML(k)}</span>
+          <span class="b-track"><i class="gold" style="width:${Math.round(v.amt / maxSrc * 100)}%"></i></span>
+          <span class="b-val">${v.n} 单</span>
+        </div>`).join('') : emptyRow('暂无')}
+    </div>
+    <div class="stat-block">
+      <div class="stat-title">客户排行</div>
+      ${Object.keys(byClient).length ? top(byClient, 5).map(([k, v], i) => `
+        <div class="rank-row" data-action="client" data-name="${U.escapeHTML(k)}">
+          <span class="rk ${i < 3 ? 'top' : ''}">${i + 1}</span>
+          <span class="rk-name">${U.escapeHTML(k)}</span>
+          <span class="rk-meta">${v.n} 单</span>
+          <span class="rk-amt">¥${U.money(v.amt)}</span>
+        </div>`).join('') : emptyRow('暂无')}
+    </div>
   </div>`;
 }
 
@@ -570,6 +586,15 @@ function formHTML(d, mode) {
   </div>
 
   <div class="field">
+    <label>这单状态</label>
+    <div class="seg" id="f-abandon">
+      <button type="button" data-v="0" class="${d.abandoned ? '' : 'on'}">正常</button>
+      <button type="button" data-v="1" class="${d.abandoned ? 'on' : ''}">跑单了</button>
+    </div>
+    <div class="hint" id="f-abandon-hint">${d.abandoned ? '跑单：只算定金，不再算未收' : ''}</div>
+  </div>
+
+  <div class="field">
     <label>妆前 / 妆后照片</label>
     <div class="photo-strip" id="f-photos"></div>
     <div class="photo-actions">
@@ -637,9 +662,21 @@ function bindForm(duty) {
     const d = readForm(duty);
     const st = U.deriveStatus(d);
     const hint = $('f-status-hint');
-    if (hint) hint.textContent = `已收 ¥${U.money(st.received)} · ${st.label}${st.remain > 0 ? ' · 还差 ¥' + U.money(st.remain) : ''}`;
+    if (hint) hint.textContent = d.abandoned
+      ? `跑单：只算定金 ¥${U.money(st.received)}，不再算未收`
+      : `已收 ¥${U.money(st.received)} · ${st.label}${st.remain > 0 ? ' · 还差 ¥' + U.money(st.remain) : ''}`;
+    const ah = $('f-abandon-hint');
+    if (ah) ah.textContent = d.abandoned ? `跑单：只算定金 ¥${U.money(st.received)}，不再算未收` : '';
   };
   ['f-price', 'f-deposit', 'f-tail'].forEach((id) => $(id)?.addEventListener('input', syncStatus));
+
+  $('f-abandon')?.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    [...$('f-abandon').children].forEach((c) => c.classList.remove('on'));
+    b.classList.add('on');
+    syncStatus();
+  });
 
   $('f-source')?.addEventListener('click', (e) => {
     const addBtn = e.target.closest('#f-add-source');
@@ -756,6 +793,7 @@ function readForm(duty) {
     price: val('f-price') === '' ? 0 : Number(val('f-price')),
     deposit: val('f-deposit') === '' ? 0 : Number(val('f-deposit')),
     tail: val('f-tail') === '' ? 0 : Number(val('f-tail')),
+    abandoned: document.querySelector('#f-abandon button.on')?.dataset.v === '1',
     note: val('f-note').trim(),
     updatedAt: Date.now()
   };
